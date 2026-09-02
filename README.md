@@ -59,7 +59,7 @@ The workbook uses the signed-in viewer's Azure permissions. It does not grant ac
 
 | File | Description |
 | --- | --- |
-| [`AzurePolicyWorkbook.workbook.json`](AzurePolicyWorkbook.workbook.json) | Azure Monitor Workbook definition for Azure Policy Search |
+| [`AzurePolicySearch.workbook.json`](AzurePolicySearch.workbook.json) | Azure Monitor Workbook definition for Azure Policy Search |
 
 ## License
 
