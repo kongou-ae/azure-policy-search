@@ -1,0 +1,185 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "## Azure Policy Search\n\nEnter text in **Search text** to search Policy Definitions and Initiatives visible in the selected Azure Resource Graph scope. Use **Resource type** and **Effect** to narrow Policy Definition results. The results use the permissions of the signed-in workbook viewer."
+      },
+      "name": "Introduction"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "crossComponentResources": [
+          "value::tenant"
+        ],
+        "parameters": [
+          {
+            "id": "search-text",
+            "version": "KqlParameterItem/1.0",
+            "name": "SearchText",
+            "type": 1,
+            "value": "",
+            "label": "Search text",
+            "description": "Search policy names, display names, descriptions, and definition JSON.",
+            "isGlobal": true
+          },
+          {
+            "id": "resource-type-filter",
+            "version": "KqlParameterItem/1.0",
+            "name": "ResourceTypeFilter",
+            "type": 2,
+            "value": null,
+            "label": "Resource type",
+            "description": "Filter Policy Definitions by resource type. Leave empty to show all.",
+            "isGlobal": true,
+            "query": "policyresources | where type =~ 'microsoft.authorization/policydefinitions' | extend ResourceType = tostring(properties.policyRule.if.allOf[0].equals) | extend ResourceType = iff(isempty(ResourceType), tostring(properties.policyRule.if.equals), ResourceType) | extend ResourceType = tolower(ResourceType) | where isnotempty(ResourceType) | distinct ResourceType | project value = ResourceType, label = ResourceType | order by label asc",
+            "queryType": 1,
+            "resourceType": "microsoft.resources/tenants",
+            "crossComponentResources": [
+              "value::tenant"
+            ],
+            "typeSettings": {
+              "includeAll": true,
+              "showDefault": true
+            }
+          },
+          {
+            "id": "effect-filter",
+            "version": "KqlParameterItem/1.0",
+            "name": "EffectFilter",
+            "label": "Effect",
+            "type": 2,
+            "description": "Filter Policy Definitions by effect. Leave empty to show all.",
+            "isGlobal": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "policyresources | where type =~ 'microsoft.authorization/policydefinitions' | extend EffectRaw = tostring(properties.policyRule.then.effect) | extend EffectParameterName = extract(@\"parameters\\('([^']+)'\\)\", 1, EffectRaw) | extend EffectParameter = properties.parameters[EffectParameterName] | extend AllowedEffects = tostring(EffectParameter.allowedValues) | extend DefaultEffect = tostring(EffectParameter.defaultValue) | extend Effect = case(isempty(EffectRaw), '', isempty(EffectParameterName), tolower(EffectRaw), isnotempty(AllowedEffects) and AllowedEffects != '[]', tolower(replace_string(replace_string(replace_string(AllowedEffects, '[', ''), ']', ''), '\"', '')), isnotempty(DefaultEffect), tolower(DefaultEffect), tolower(EffectRaw)) | where isnotempty(Effect) | mv-expand Effect = split(Effect, ',') | extend Effect = trim(' ', tostring(Effect)) | where isnotempty(Effect) | distinct Effect | project value = Effect, label = Effect | order by label asc",
+            "crossComponentResources": [
+              "value::tenant"
+            ],
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "queryType": 1,
+            "resourceType": "microsoft.resources/tenants",
+            "value": [
+              "value::all"
+            ]
+          }
+        ],
+        "style": "formHorizontal",
+        "queryType": 1,
+        "resourceType": "microsoft.resources/tenants"
+      },
+      "name": "Search filters"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "policyresources\n| where type =~ 'microsoft.authorization/policydefinitions'\n| extend DisplayName = tostring(properties.displayName), Description = tostring(properties.description)\n| extend DefinitionJson = tostring(properties)\n| where isempty('{SearchText}') or name contains '{SearchText}' or DisplayName contains '{SearchText}' or Description contains '{SearchText}' or DefinitionJson contains '{SearchText}'\n| where DisplayName !contains '[Deprecated]'\n| extend EffectRaw = tostring(properties.policyRule.then.effect)\n| extend EffectParameterName = extract(@\"parameters\\('([^']+)'\\)\", 1, EffectRaw)\n| extend EffectParameter = properties.parameters[EffectParameterName]\n| extend AllowedEffects = tostring(EffectParameter.allowedValues)\n| extend DefaultEffect = tostring(EffectParameter.defaultValue)\n| extend Effect = case(isempty(EffectRaw), '', isempty(EffectParameterName), tolower(EffectRaw), isnotempty(AllowedEffects) and AllowedEffects != '[]', tolower(replace_string(replace_string(replace_string(AllowedEffects, '[', ''), ']', ''), '\"', '')), isnotempty(DefaultEffect), tolower(DefaultEffect), tolower(EffectRaw))\n| extend ResourceType = tostring(properties.policyRule.if.allOf[0].equals)\n| extend ResourceType = iff(isempty(ResourceType), tostring(properties.policyRule.if.equals), ResourceType)\n| extend ResourceType = tolower(ResourceType)\n| where isempty('{ResourceTypeFilter}') or ResourceType =~ '{ResourceTypeFilter}'\n| extend SelectedEffects = dynamic([{EffectFilter}])\n| extend EffectValues = split(Effect, ',')\n| where array_length(SelectedEffects) == 0 or array_length(set_intersect(EffectValues, SelectedEffects)) > 0\n| extend PortalUrl = strcat('https://portal.azure.com/#blade/Microsoft_Azure_Policy/PolicyDetailBlade/definitionId/', url_encode_component(id))\n| project Details = 'Details', DisplayName, ResourceType, Effect, PolicyType = tostring(properties.policyType), Description, PortalUrl\n| order by DisplayName asc",
+        "size": 0,
+        "title": "Policy definitions",
+        "queryType": 1,
+        "resourceType": "microsoft.resources/tenants",
+        "crossComponentResources": [
+          "value::tenant"
+        ],
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Details",
+              "formatter": 13,
+              "formatOptions": {
+                "linkTarget": "Generic Details",
+                "linkLabel": "🔎",
+                "linkIsContextBlade": true,
+                "showIcon": true,
+                "customColumnWidthSetting": "30px"
+              }
+            },
+            {
+              "columnMatch": "DisplayName",
+              "formatter": 13,
+              "formatOptions": {
+                "linkColumn": "PortalUrl",
+                "linkTarget": "Url",
+                "showIcon": true,
+                "customColumnWidthSetting": "600px"
+              }
+            },
+            {
+              "columnMatch": "PortalUrl",
+              "formatter": 5,
+              "formatOptions": {
+                "linkTarget": "Url",
+                "linkLabel": "Open in portal"
+              }
+            }
+          ],
+          "rowLimit": 1000,
+          "labelSettings": [
+            {
+              "columnId": "Details",
+              "label": "."
+            }
+          ]
+        },
+        "sortBy": []
+      },
+      "name": "Policy definitions"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "policyresources\n| where type =~ 'microsoft.authorization/policysetdefinitions'\n| extend DisplayName = tostring(properties.displayName), Description = tostring(properties.description)\n| extend DefinitionJson = tostring(properties)\n| where isempty('{SearchText}') or name contains '{SearchText}' or DisplayName contains '{SearchText}' or Description contains '{SearchText}' or DefinitionJson contains '{SearchText}'\n| where DisplayName !contains '[Deprecated]'\n| extend PortalUrl = strcat('https://portal.azure.com/#blade/Microsoft_Azure_Policy/InitiativeDetailBlade/id/', url_encode_component(id))\n| project DisplayName, PolicyType = tostring(properties.policyType), Description, PortalUrl\n| order by DisplayName asc",
+        "size": 0,
+        "title": "Policy initiatives",
+        "queryType": 1,
+        "resourceType": "microsoft.resources/tenants",
+        "crossComponentResources": [
+          "value::tenant"
+        ],
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "DisplayName",
+              "formatter": 13,
+              "formatOptions": {
+                "linkColumn": "PortalUrl",
+                "linkTarget": "Url",
+                "showIcon": true,
+                "customColumnWidthSetting": "600px"
+              }
+            },
+            {
+              "columnMatch": "PortalUrl",
+              "formatter": 5,
+              "formatOptions": {
+                "linkTarget": "Url",
+                "linkLabel": "Open in portal"
+              }
+            }
+          ],
+          "rowLimit": 1000
+        },
+        "sortBy": []
+      },
+      "name": "Policy initiatives"
+    }
+  ],
+  "fallbackResourceIds": [
+    "azure monitor"
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
