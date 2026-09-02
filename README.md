@@ -4,6 +4,8 @@
 
 It provides a focused, read-only view of policy metadata and links each result to the corresponding resource in the Azure portal.
 
+![Azure Policy Search sample](sample.png)
+
 ## Features
 
 - Search policy names, display names, descriptions, and serialized definitions.
